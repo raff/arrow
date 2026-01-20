@@ -1,5 +1,6 @@
-# Arrow
-A SwiftUI-based iOS application featuring a target archery simulation and trainer.
+# Target Archery iOS Game
+
+A SwiftUI-based iOS application featuring an interactive archery target game.
 
 ## Features
 
@@ -61,6 +62,7 @@ arrow/
 ├── AimingCursor.swift          # Draggable aiming cursor component
 ├── ArrowFlightSimulator.swift  # Physics-based arrow flight simulation engine
 ├── Info.plist                  # App configuration
+└── README.md                   # This file
 ```
 
 ## Requirements
@@ -68,6 +70,14 @@ arrow/
 - iOS 14.0 or later
 - Xcode 12.0 or later
 - Swift 5.3 or later
+
+## How to Use
+
+1. Open Xcode and create a new iOS App project
+2. Name it "Target Archery" or your preferred name
+3. Choose SwiftUI for the interface and Swift for the language
+4. Replace the generated files with the files from this project
+5. Build and run on simulator or device
 
 ## Gameplay
 
@@ -142,17 +152,19 @@ The app uses realistic projectile motion physics with air resistance:
 ## Future Enhancements
 
 Potential features to add:
-- ✅ Shooting mechanism with physics simulation
-- ✅ Distance variations
-- ✅ Score calculation based on where the arrow lands
-- ✅ Multiple arrows per round
-- ✅ Sound and haptic effects
+- ✅ Shooting mechanism with physics simulation (IMPLEMENTED)
+- ✅ Distance variations (IMPLEMENTED)
+- Score calculation based on where the arrow lands
+- Multiple arrows per round
+- Sound effects
+- Difficulty levels with moving targets
 - Leaderboard and high scores
 - Wind effects and air resistance
 - Arrow drop visualization/trajectory path display
+- Different bow types with varying characteristics
 - Save and load simulation presets
 
 ## License
 
-Free to use and modify for personal projects. Not for commercial use without permission.
-See LICENSE file for details.
+Free to use and modify for personal or commercial projects.
+

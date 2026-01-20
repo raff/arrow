@@ -1,0 +1,77 @@
+import UIKit
+import AVFoundation
+import MediaPlayer
+
+final class SelfieRemoteHandler {
+    private let audioSession = AVAudioSession.sharedInstance()
+    private var volumeObservation: NSKeyValueObservation?
+    private let volumeView = MPVolumeView(frame: .zero) // hidden
+    private var lastVolume: Float
+
+    init() {
+        lastVolume = audioSession.outputVolume
+        setup()
+    }
+
+    deinit {
+        teardown()
+    }
+
+    private func setup() {
+        // 1) Add a hidden MPVolumeView to the view hierarchy (somewhere visible to the app)
+        // For example, you could add to keyWindow (or the view controller's view).
+        if let window = UIApplication.shared.windows.first {
+            volumeView.isHidden = true
+            window.addSubview(volumeView)
+        }
+
+        // 2) Activate audio session
+        try? audioSession.setActive(true, options: [])
+
+        // 3) Observe outputVolume
+        volumeObservation = audioSession.observe(\.outputVolume, options: [.new]) { [weak self] session, change in
+            guard let self = self, let newVolume = change.newValue else { return }
+            self.handleVolumeChange(newVolume)
+        }
+    }
+
+    private func teardown() {
+        volumeObservation?.invalidate()
+        volumeObservation = nil
+        try? audioSession.setActive(false, options: [])
+        volumeView.removeFromSuperview()
+    }
+
+    private func handleVolumeChange(_ newVolume: Float) {
+        // Debounce / guard against repeated notifications
+        guard newVolume != lastVolume else { return }
+
+        if newVolume > lastVolume {
+            // Volume UP — treat as selfie-remote press
+            selfieButtonPressed()
+        } else {
+            // Volume DOWN — optional handling
+        }
+
+        // Restore the previous volume so the system volume doesn't actually change
+        restoreVolume(to: lastVolume)
+
+        // Update lastVolume for future comparisons (we restored it)
+        // Note: restoreVolume triggers another outputVolume change; we rely on equality guard above to ignore it
+    }
+
+    private func restoreVolume(to value: Float) {
+        // Find the MPVolumeView's UISlider and set its value.
+        // This is public API (MPVolumeView) and widely used.
+        if let slider = volumeView.subviews.compactMap({ $0 as? UISlider }).first {
+            slider.value = value
+            // send action so the system picks up the programmatic change
+            slider.sendActions(for: .valueChanged)
+        }
+    }
+
+    private func selfieButtonPressed() {
+        // Your code: trigger shutter, take photo, etc.
+        print("Selfie remote pressed (volume up)")
+    }
+}
