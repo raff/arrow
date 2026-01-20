@@ -714,12 +714,6 @@ struct ContentView: View {
         } message: {
             Text("This will clear all scores from the current competition. Your final score was \(totalScore) points.")
         }
-        .onAppear {
-            updateCursorPosition()
-            // Initialize SoundManager settings
-            SoundManager.shared.audioEffectsEnabled = audioEffectsEnabled
-            SoundManager.shared.hapticFeedbackEnabled = hapticFeedbackEnabled
-        }
         .onChange(of: initialSpeed) { _ in updateCursorPosition() }
         .onChange(of: distanceToTarget) { _ in
             updateCursorPosition()
@@ -790,6 +784,12 @@ struct ContentView: View {
         .onChange(of: hapticFeedbackEnabled) { enabled in
             // Update SoundManager when haptic setting changes
             SoundManager.shared.hapticFeedbackEnabled = enabled
+        }
+        .onAppear {
+            updateCursorPosition()
+            // Initialize SoundManager settings
+            SoundManager.shared.audioEffectsEnabled = audioEffectsEnabled
+            SoundManager.shared.hapticFeedbackEnabled = hapticFeedbackEnabled
         }
     }
     
