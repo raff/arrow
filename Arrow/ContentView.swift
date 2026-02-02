@@ -134,8 +134,9 @@ struct ContentView: View {
     @AppStorage("drawLength") private var drawLength: Double = Defaults.DrawLength // inches - affects release time
     @AppStorage("dragCoefficient") private var dragCoefficient: Double = Defaults.DragCoefficient // typical for arrows
     
-    // Accelerometer control (persisted)
-    @State private var accelerometerSensitivity: Double = 2.0 // Multiplier for motion sensitivity
+    // Motion tuning
+    private let angleDeadzone: Double = 0.4 // degrees of deadzone to ignore jitter
+    private let edgeSoftClamp: CGFloat = 18.0 // pixels of soft edge for cursor clamping
     @AppStorage("audioEffectsEnabled") private var audioEffectsEnabled: Bool = Defaults.AudioEffectsEnabled // Audio effects on/off
     @AppStorage("hapticFeedbackEnabled") private var hapticFeedbackEnabled: Bool = Defaults.HapticFeedbackEnabled // Haptic feedback on/off
     
@@ -341,7 +342,7 @@ struct ContentView: View {
                                     .font(.caption)
                             }
                             .foregroundColor(.white.opacity(0.7))
-                            Text("\(String(format: "%+.1f", motionManager.pitch * accelerometerSensitivity))°")
+                            Text("\(String(format: "%+.1f", motionManager.pitch))°")
                                 .font(.system(.callout, design: .monospaced))
                                 .fontWeight(.semibold)
                                 .foregroundColor(motionManager.pitch > 0 ? .green : (motionManager.pitch < 0 ? .orange : .white))
@@ -359,7 +360,7 @@ struct ContentView: View {
                                     .font(.caption)
                             }
                             .foregroundColor(.white.opacity(0.7))
-                            Text("\(String(format: "%+.1f", motionManager.roll * accelerometerSensitivity))°")
+                            Text("\(String(format: "%+.1f", motionManager.roll))°")
                                 .font(.system(.callout, design: .monospaced))
                                 .fontWeight(.semibold)
                                 .foregroundColor(abs(motionManager.roll) > 5 ? .yellow : .white)
@@ -736,7 +737,7 @@ struct ContentView: View {
             // - Moving arm UP (device tilts back) = positive pitch = aim higher
             // - Moving arm DOWN (device tilts forward) = negative pitch = aim lower
             let baseAngle = 5.0 // Base angle when device is at calibrated position
-            let pitchAngle = newPitch * accelerometerSensitivity
+            let pitchAngle = applyDeadzone(newPitch)
             launchAngle = max(-10, min(45, baseAngle + pitchAngle))
             updateCursorPosition()
         }
@@ -744,7 +745,7 @@ struct ContentView: View {
             // With vertical phone holding:
             // - Moving arm LEFT (device tilts left) = negative roll = aim left
             // - Moving arm RIGHT (device tilts right) = positive roll = aim right
-            windage = newRoll * accelerometerSensitivity
+            windage = applyDeadzone(newRoll)
             updateCursorPosition()
         }
         .onChange(of: volumeMonitor.volumePressed) { pressed in
@@ -897,6 +898,30 @@ struct ContentView: View {
         else if score > 0 { return .red }
         else { return .gray }
     }
+
+    // MARK: - Motion Helpers
+
+    private func applyDeadzone(_ angle: Double) -> Double {
+        if abs(angle) <= angleDeadzone { return 0.0 }
+        return angle > 0 ? angle - angleDeadzone : angle + angleDeadzone
+    }
+
+    private func softClamp(_ value: CGFloat, min: CGFloat, max: CGFloat, edge: CGFloat) -> CGFloat {
+        if value < min {
+            let delta = value - min
+            return min + (delta / (1.0 + abs(delta) / edge))
+        }
+        if value > max {
+            let delta = value - max
+            return max + (delta / (1.0 + abs(delta) / edge))
+        }
+        return value
+    }
+
+    private func windageOffsetFeet() -> Double {
+        let windageRad = windage * .pi / 180.0
+        return tan(windageRad) * distanceToTarget
+    }
     
     private func fullScorecardRow(set: ArrowSet, isCurrent: Bool) -> some View {
         // Calculate running total
@@ -1018,12 +1043,9 @@ struct ContentView: View {
             let yOffset = -hitPosition.y * pixelsPerFoot
             let calculatedY = centerY + yOffset
             
-            // Horizontal offset from windage (convert degrees to pixels)
-            // Map windage degrees to horizontal screen space
-            // At 20 feet, 1 degree ≈ 0.35 feet horizontal offset
-            // Use similar pixel conversion as vertical
-            let windageOffset = windage * 10.0 // Scale windage to reasonable screen movement
-            let calculatedX = centerX + windageOffset
+            // Horizontal offset from windage using distance-based mapping
+            let windageOffsetPx = windageOffsetFeet() * Double(pixelsPerFoot)
+            let calculatedX = centerX + CGFloat(windageOffsetPx)
             
             // Define target bounds
             //let targetRadius: CGFloat = 170.0 // 340/2
@@ -1036,16 +1058,17 @@ struct ContentView: View {
             let screenLeft: CGFloat = 20.0
             let screenRight: CGFloat = UIScreen.main.bounds.width - 20.0
             
-            // Clamp to screen bounds
-            let finalY = max(screenTop, min(screenBottom, calculatedY))
-            let finalX = max(screenLeft, min(screenRight, calculatedX))
+            // Soft clamp to screen bounds to avoid hard "sticking" at edges
+            let finalY = softClamp(calculatedY, min: screenTop, max: screenBottom, edge: edgeSoftClamp)
+            let finalX = softClamp(calculatedX, min: screenLeft, max: screenRight, edge: edgeSoftClamp)
             
             cursorPosition = CGPoint(x: finalX, y: finalY)
         } else {
             // If arrow doesn't hit target, position cursor at bottom
             let centerX = UIScreen.main.bounds.width / 2.0
-            let windageOffset = windage * 10.0
-            let finalX = max(20.0, min(UIScreen.main.bounds.width - 20.0, centerX + windageOffset))
+            let windageOffsetPx = windageOffsetFeet() * Double(340.0 / targetHeightFeet)
+            let calculatedX = centerX + CGFloat(windageOffsetPx)
+            let finalX = softClamp(calculatedX, min: 20.0, max: UIScreen.main.bounds.width - 20.0, edge: edgeSoftClamp)
             cursorPosition = CGPoint(x: finalX, y: containerHeight - 20)
         }
     }
@@ -1188,21 +1211,20 @@ struct ContentView: View {
         let yOffset = -simulatorHitPosition.y * pixelsPerFoot
         let calculatedY = centerY + yOffset
         
-        let windageOffset = windage * 10.0
-        let calculatedX = centerX + windageOffset
+        let windageOffsetPx = windageOffsetFeet() * Double(pixelsPerFoot)
+        let calculatedX = centerX + CGFloat(windageOffsetPx)
         
         let screenTop: CGFloat = 10.0
         let screenBottom: CGFloat = self.containerHeight - 10.0
         let screenLeft: CGFloat = 20.0
         let screenRight: CGFloat = UIScreen.main.bounds.width - 20.0
         
-        let finalY = max(screenTop, min(screenBottom, calculatedY))
-        let finalX = max(screenLeft, min(screenRight, calculatedX))
+        let finalY = softClamp(calculatedY, min: screenTop, max: screenBottom, edge: edgeSoftClamp)
+        let finalX = softClamp(calculatedX, min: screenLeft, max: screenRight, edge: edgeSoftClamp)
         finalPosition = CGPoint(x: finalX, y: finalY)
         
         // Convert windage pixel offset to feet for scoring
-        let windageOffsetFeet = windageOffset / pixelsPerFoot
-        hitPosition = (x: windageOffsetFeet, y: simulatorHitPosition.y)
+        hitPosition = (x: windageOffsetFeet(), y: simulatorHitPosition.y)
         
         // Calculate score (common for both modes)
         let score = calculateScore(offsetFromCenter: CGPoint(x: hitPosition.x, y: hitPosition.y))

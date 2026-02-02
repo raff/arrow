@@ -81,7 +81,7 @@ class MotionManager: ObservableObject {
             
             // Apply calibration offset and sensitivity
             let calibratedPitch = (self.smoothedPitch - self.pitchOffset) * self.angleSensitivity
-            let calibratedRoll = (self.smoothedRoll - self.rollOffset)
+            let calibratedRoll = (self.smoothedRoll - self.rollOffset) * self.angleSensitivity
             
             // Update published values
             self.pitch = calibratedPitch
