@@ -13,6 +13,7 @@ struct SettingsView: View {
     @Binding var initialSpeed: Double
     @Binding var distanceToTarget: Double
     @Binding var targetSize: Double
+    @Binding var targetStyle: String
     @Binding var arrowWeight: Double
     @Binding var arrowDiameter: Double
     @Binding var drawLength: Double
@@ -93,6 +94,25 @@ struct SettingsView: View {
                 }
                 
                 Section(header: Text("Range Setup")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Target Style")
+                            Spacer()
+                            Text(TargetStyle(rawValue: targetStyle)?.detailLabel ?? TargetStyle.targetArchery.detailLabel)
+                                .foregroundColor(.secondary)
+                        }
+                        Picker("Target Style", selection: $targetStyle) {
+                            ForEach(TargetStyle.allCases) { style in
+                                Text(style.title).tag(style.rawValue)
+                            }
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        Text("Target archery uses 10 rings; field archery uses 6 rings.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Initial Speed")
@@ -219,6 +239,7 @@ struct SettingsView: View {
                             Button("18m") {
                                 distanceToTarget = 18 / 0.3048 // Convert meters to feet
                                 targetSize = 40.0 // 40cm target for < 50m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(18) ? .blue : .gray)
@@ -226,6 +247,7 @@ struct SettingsView: View {
                             Button("25m") {
                                 distanceToTarget = 25 / 0.3048
                                 targetSize = 40.0 // 40cm target for < 50m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(25) ? .blue : .gray)
@@ -233,6 +255,7 @@ struct SettingsView: View {
                             Button("30m") {
                                 distanceToTarget = 30 / 0.3048
                                 targetSize = 40.0 // 40cm target for < 50m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(30) ? .blue : .gray)
@@ -240,6 +263,7 @@ struct SettingsView: View {
                             Button("50m") {
                                 distanceToTarget = 50 / 0.3048
                                 targetSize = 80.0 // 80cm target for 50m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(50) ? .blue : .gray)
@@ -249,6 +273,7 @@ struct SettingsView: View {
                             Button("60m") {
                                 distanceToTarget = 60 / 0.3048
                                 targetSize = 122.0 // 122cm target for ≥ 60m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(60) ? .blue : .gray)
@@ -256,6 +281,7 @@ struct SettingsView: View {
                             Button("70m") {
                                 distanceToTarget = 70 / 0.3048
                                 targetSize = 122.0 // 122cm target for ≥ 60m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(70) ? .blue : .gray)
@@ -263,6 +289,7 @@ struct SettingsView: View {
                             Button("90m") {
                                 distanceToTarget = 90 / 0.3048
                                 targetSize = 122.0 // 122cm target for ≥ 60m
+                                targetStyle = TargetStyle.targetArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isDistanceActive(90) ? .blue : .gray)
@@ -279,6 +306,7 @@ struct SettingsView: View {
                             Button("20yd") {
                                 distanceToTarget = 20 * 3 // Convert yards to feet
                                 targetSize = 40.0 // 20 yd = 18.3m, use 40cm
+                                targetStyle = TargetStyle.fieldArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isYardsActive(20) ? .blue : .gray)
@@ -286,6 +314,7 @@ struct SettingsView: View {
                             Button("30yd") {
                                 distanceToTarget = 30 * 3
                                 targetSize = 40.0 // 30 yd = 27.4m, use 40cm
+                                targetStyle = TargetStyle.fieldArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isYardsActive(30) ? .blue : .gray)
@@ -293,6 +322,7 @@ struct SettingsView: View {
                             Button("40yd") {
                                 distanceToTarget = 40 * 3
                                 targetSize = 40.0 // 40 yd = 36.6m, use 40cm
+                                targetStyle = TargetStyle.fieldArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isYardsActive(40) ? .blue : .gray)
@@ -300,6 +330,7 @@ struct SettingsView: View {
                             Button("50yd") {
                                 distanceToTarget = 50 * 3
                                 targetSize = 80.0 // 50 yd = 45.7m, use 80cm
+                                targetStyle = TargetStyle.fieldArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isYardsActive(50) ? .blue : .gray)
@@ -307,6 +338,7 @@ struct SettingsView: View {
                             Button("60yd") {
                                 distanceToTarget = 60 * 3
                                 targetSize = 122.0 // 60 yd = 54.9m, use 122cm
+                                targetStyle = TargetStyle.fieldArchery.rawValue
                             }
                             .buttonStyle(BorderedButtonStyle())
                             .tint(isYardsActive(60) ? .blue : .gray)
@@ -371,6 +403,7 @@ struct SettingsView_Previews: PreviewProvider {
             initialSpeed: .constant(Defaults.ArrowSpeed),
             distanceToTarget: .constant(59), // 18m
             targetSize: .constant(40.0), // 40cm
+            targetStyle: .constant(TargetStyle.targetArchery.rawValue),
             arrowWeight: .constant(Defaults.ArrowWeight),
             arrowDiameter: .constant(Defaults.ArrowDiameter),
             drawLength: .constant(Defaults.DrawLength),

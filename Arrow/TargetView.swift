@@ -1,20 +1,36 @@
 import SwiftUI
 
 struct TargetView: View {
-    // 10-zone archery target (2 zones per color)
-    // Scoring: 1-2 (white), 3-4 (black), 5-6 (blue), 7-8 (red), 9-10 (yellow)
-    let rings: [(color: Color, size: CGFloat, score: Int)] = [
-        (Color.white, 1.0, 1),       // Zone 1 (outer white)
-        (Color.white, 0.9, 2),       // Zone 2 (inner white)
-        (Color.black, 0.8, 3),       // Zone 3 (outer black)
-        (Color.black, 0.7, 4),       // Zone 4 (inner black)
-        (Color.blue, 0.6, 5),        // Zone 5 (outer blue)
-        (Color.blue, 0.5, 6),        // Zone 6 (inner blue)
-        (Color.red, 0.4, 7),         // Zone 7 (outer red)
-        (Color.red, 0.3, 8),         // Zone 8 (inner red)
-        (Color.yellow, 0.2, 9),      // Zone 9 (outer yellow)
-        (Color.yellow, 0.1, 10)      // Zone 10 (center - bullseye)
-    ]
+    let targetStyle: TargetStyle
+
+    private var rings: [(color: Color, size: CGFloat, score: Int)] {
+        let ringCount = targetStyle.ringCount
+        let step = 1.0 / CGFloat(ringCount)
+        let colors: [Color]
+
+        switch targetStyle {
+        case .targetArchery:
+            colors = [
+                Color.white, Color.white,
+                Color.black, Color.black,
+                Color.blue, Color.blue,
+                Color.red, Color.red,
+                Color.yellow, Color.yellow
+            ]
+        case .fieldArchery:
+            colors = [
+                Color.black, Color.black,
+                Color.black, Color.black,
+                Color.yellow, Color.yellow
+            ]
+        }
+
+        return (0..<ringCount).map { index in
+            let size = 1.0 - (CGFloat(index) * step)
+            let score = ringCount - index
+            return (colors[index], size, score)
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -22,7 +38,7 @@ struct TargetView: View {
             
             ZStack {
                 // Draw rings from largest to smallest
-                ForEach(Array(rings.enumerated()), id: \.offset) { index, ring in
+                ForEach(Array(rings.enumerated()), id: \.offset) { _, ring in
                     Circle()
                         .fill(ring.color)
                         .frame(width: size * ring.size, height: size * ring.size)
@@ -49,10 +65,9 @@ struct TargetView: View {
 
 struct TargetView_Previews: PreviewProvider {
     static var previews: some View {
-        TargetView()
+        TargetView(targetStyle: .targetArchery)
             .frame(width: 340, height: 340)
             .padding()
             .background(Color.gray.opacity(0.2))
     }
 }
-

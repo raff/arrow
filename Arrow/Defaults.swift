@@ -9,6 +9,7 @@ struct Defaults {
     // Target Properties
     static let DistanceToTarget: Double = 59.0 // feet (18m - common indoor distance)
     static let TargetSize: Double = 40.0 // cm - target face size (40cm, 80cm, or 122cm)
+    static let TargetStyleValue: String = "targetArchery"
     
     // Motion Control
     static let AngleSensitivity: Double = 1.0 // How much phone angle affects cursor (1.0 = normal, higher = more sensitive)

@@ -127,6 +127,7 @@ struct ContentView: View {
     @AppStorage("initialSpeed") private var initialSpeed: Double = Defaults.ArrowSpeed // feet per second
     @AppStorage("distanceToTarget") private var distanceToTarget: Double = Defaults.DistanceToTarget // feet (18m - common indoor distance)
     @AppStorage("targetSize") private var targetSize: Double = Defaults.TargetSize // cm - target face size (40cm, 80cm, or 122cm)
+    @AppStorage("targetStyle") private var targetStyle: String = Defaults.TargetStyleValue
     @State private var launchAngle: Double = 5.0 // degrees (can be set by slider or accelerometer)
     @State private var windage: Double = 0.0 // degrees - horizontal offset from accelerometer roll
     @AppStorage("arrowWeight") private var arrowWeight: Double = Defaults.ArrowWeight // grains
@@ -162,6 +163,10 @@ struct ContentView: View {
     // Computed property for target size in feet (based on configurable targetSize in cm)
     var targetHeightFeet: Double {
         targetSize / 30.48 // Convert cm to feet
+    }
+
+    var selectedTargetStyle: TargetStyle {
+        TargetStyle(rawValue: targetStyle) ?? .targetArchery
     }
     
     // Computed properties
@@ -226,7 +231,7 @@ struct ContentView: View {
                 // Header with settings button
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Target Archery")
+                        Text(selectedTargetStyle.title)
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
@@ -277,7 +282,7 @@ struct ContentView: View {
                             .cornerRadius(15)
                         
                         // Target centered in the available space
-                        TargetView()
+                        TargetView(targetStyle: selectedTargetStyle)
                             .frame(width: 340, height: 340)
                             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
                         
@@ -302,7 +307,7 @@ struct ContentView: View {
                         ForEach(currentSetShots) { shot in
                             ZStack {
                                 Circle()
-                                    .fill(shot.score == 0 ? Color.gray : (shot.score >= 7 ? Color.green : (shot.score >= 4 ? Color.yellow : Color.orange)))
+                                    .fill(scoreColor(shot.score))
                                     .frame(width: 14, height: 14)
                                 Circle()
                                     .stroke(Color.white, lineWidth: 2)
@@ -683,6 +688,7 @@ struct ContentView: View {
                 initialSpeed: $initialSpeed,
                 distanceToTarget: $distanceToTarget,
                 targetSize: $targetSize,
+                targetStyle: $targetStyle,
                 arrowWeight: $arrowWeight,
                 arrowDiameter: $arrowDiameter,
                 drawLength: $drawLength,
@@ -725,6 +731,13 @@ struct ContentView: View {
         }
         .onChange(of: targetSize) { _ in
             // Reset competition when target size changes (different target = different competition)
+            if !currentSetShots.isEmpty || !completedSets.isEmpty {
+                resetCompetition()
+            }
+        }
+        .onChange(of: targetStyle) { _ in
+            updateCursorPosition()
+            // Reset competition when target style changes (different target face = different competition)
             if !currentSetShots.isEmpty || !completedSets.isEmpty {
                 resetCompetition()
             }
@@ -892,11 +905,13 @@ struct ContentView: View {
     }
     
     private func scoreColor(_ score: Int) -> Color {
-        if score >= 9 { return .green }
-        else if score >= 7 { return .blue }
-        else if score >= 5 { return .orange }
-        else if score > 0 { return .red }
-        else { return .gray }
+        if score <= 0 { return .gray }
+        let maxScore = selectedTargetStyle.ringCount
+        let ratio = Double(score) / Double(max(1, maxScore))
+        if ratio >= 0.85 { return .green }
+        if ratio >= 0.65 { return .blue }
+        if ratio >= 0.45 { return .orange }
+        return .red
     }
 
     // MARK: - Motion Helpers
@@ -988,9 +1003,7 @@ struct ContentView: View {
         }
     }
     
-    /// Calculate score (0-10) based on distance from center
-    /// Target is 4 feet tall = 340 pixels
-    /// Each zone is 10% of radius (0.2 feet = 17 pixels)
+    /// Calculate score based on distance from center
     private func calculateScore(offsetFromCenter: CGPoint) -> Int {
         // Convert target size from cm to feet
         let targetRadiusCm = targetSize / 2.0
@@ -1006,16 +1019,16 @@ struct ContentView: View {
         // If any part of the arrow touches a higher zone, count the higher score
         let effectiveDistance = max(0, distance - arrowRadiusFeet)
         
-        // 10 zones, each 10% of radius
-        let zoneSize = targetRadius / 10.0
+        let maxScore = selectedTargetStyle.ringCount
+        let zoneSize = targetRadius / Double(maxScore)
         
         if distance - arrowRadiusFeet > targetRadius {
             return 0 // Miss (even the edge doesn't touch the target)
         }
         
-        // Calculate which zone (1-10, where 1 is outer, 10 is center)
+        // Calculate which zone (1-maxScore, where 1 is outer, maxScore is center)
         let zone = Int(effectiveDistance / zoneSize)
-        return max(1, 10 - zone) // Invert so center = 10
+        return max(1, maxScore - zone) // Invert so center is maxScore
     }
     
     private func updateCursorPosition() {
@@ -1272,6 +1285,7 @@ struct ScoreTableView: View {
     let currentSetShots: [Shot]
     let currentSetNumber: Int
     let onClear: () -> Void
+    @AppStorage("targetStyle") private var targetStyle: String = Defaults.TargetStyleValue
     @Environment(\.dismiss) var dismiss
     
     var allSets: [ArrowSet] {
@@ -1285,6 +1299,19 @@ struct ScoreTableView: View {
     
     var totalScore: Int {
         allSets.map { $0.totalScore }.reduce(0, +)
+    }
+
+    private var maxScore: Int {
+        TargetStyle(rawValue: targetStyle)?.ringCount ?? TargetStyle.targetArchery.ringCount
+    }
+
+    private func scoreColor(_ score: Int) -> Color {
+        if score <= 0 { return .gray }
+        let ratio = Double(score) / Double(max(1, maxScore))
+        if ratio >= 0.85 { return .green }
+        if ratio >= 0.65 { return .blue }
+        if ratio >= 0.45 { return .orange }
+        return .red
     }
     
     var totalArrows: Int {
@@ -1346,9 +1373,9 @@ struct ScoreTableView: View {
                                                 Text("\(shot.score)")
                                                     .font(.caption)
                                                     .fontWeight(.semibold)
-                                                    .foregroundColor(shot.score >= 7 ? .green : (shot.score >= 4 ? .orange : (shot.score > 0 ? .red : .gray)))
+                                                    .foregroundColor(scoreColor(shot.score))
                                                 Circle()
-                                                    .fill(shot.score >= 7 ? Color.green : (shot.score >= 4 ? Color.orange : (shot.score > 0 ? Color.red : Color.gray)))
+                                                    .fill(scoreColor(shot.score))
                                                     .frame(width: 6, height: 6)
                                             }
                                         }
