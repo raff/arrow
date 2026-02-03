@@ -38,13 +38,19 @@ struct TargetView: View {
             
             ZStack {
                 // Draw rings from largest to smallest
-                ForEach(Array(rings.enumerated()), id: \.offset) { _, ring in
+                ForEach(Array(rings.enumerated()), id: \.offset) { index, ring in
+                    let strokeColor: Color = {
+                        if index > 0, ring.color == .black, rings[index - 1].color == .black {
+                            return .white
+                        }
+                        return .black
+                    }()
                     Circle()
                         .fill(ring.color)
                         .frame(width: size * ring.size, height: size * ring.size)
                         .overlay(
                             Circle()
-                                .stroke(Color.black, lineWidth: 2)
+                                .stroke(strokeColor, lineWidth: 2)
                         )
                 }
                 
